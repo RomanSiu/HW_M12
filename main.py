@@ -1,5 +1,9 @@
 from collections import UserDict
 from datetime import datetime
+import pickle
+
+
+file_name = "contact_book.bin"
 
 def input_error(func):
     def Inner(*args):
@@ -66,7 +70,7 @@ class Record:
     def add_phone(self, phone = None, birthday = None):
         p = Phone()
         p.value = phone
-        if p.value != None:
+        if p.value is not None:
             self.phone = p
             self.phones.append(self.phone)
         if birthday:
@@ -92,7 +96,7 @@ class Record:
         p = Phone()
         p.value = new_phone
         self.phone = p
-        if p.value != None:
+        if p.value is not None:
             self.phones.pop(old_phone_indx)
             self.phones.insert(old_phone_indx, self.phone)
         
@@ -113,13 +117,28 @@ class Record:
 
     def __str__(self):
         if self.birthday and self.phones:
-            return f"Contact name: {self.name.value}, phones: {'; '.join(p.value for p in self.phones)}, birthday: {self.birthday.value}"
+            return (f"Contact name: {self.name.value}, "
+                    f"phones: {'; '.join(p.value for p in self.phones)}, "
+                    f"birthday: {self.birthday.value}")
         elif self.phones:
-            return f"Contact name: {self.name.value}, phones: {'; '.join(p.value for p in self.phones)}"
+            return (f"Contact name: {self.name.value}, "
+                    f"phones: {'; '.join(p.value for p in self.phones)}")
         else:
             return f"Contact name: {self.name.value}"
 
 class AddressBook(UserDict):
+    try:
+        with open (file_name, "rb+") as fh:
+            unpacked = pickle.load(fh)
+            def __init__(self):
+                self.data = AddressBook.unpacked
+    except FileNotFoundError:
+        ...
+        
+    def save_file(self):
+        with open (file_name, "wb") as fh:
+            pickle.dump(self.data, fh)
+        
     def add_record(self, record):
         self.data[record.name.value] = record
     
@@ -129,6 +148,12 @@ class AddressBook(UserDict):
             if k == name:
                 return self.data[k]
         print("There is no such contact in the address book")
+        
+    def search(self, val):
+        for v in self.data.values():
+            phones = [str(p) for p in v.phones]
+            if val in str(v.name) or val in "".join(phones):
+                print(v)
 
     @input_error
     def delete(self, name):        
@@ -139,9 +164,12 @@ class AddressBook(UserDict):
         list_notes = []
         for v in self.data.values():
             if v.birthday:
-                new_v = f"Contact name: {v.name.value}, phones: {'; '.join(p.value for p in v.phones)}, birthday: {v.birthday.value}"
+                new_v = f"Contact name: {v.name.value}, "
+                f"phones: {'; '.join(p.value for p in v.phones)}, "
+                f"birthday: {v.birthday.value}"
             else:
-                new_v = f"Contact name: {v.name.value}, phones: {'; '.join(p.value for p in v.phones)}"
+                new_v = f"Contact name: {v.name.value}, "
+                f"phones: {'; '.join(p.value for p in v.phones)}"
             list_notes.append(new_v) 
             if len(list_notes) == n_on_page:
                 yield list_notes
