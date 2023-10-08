@@ -15,6 +15,8 @@ def input_error(func):
         except ValueError:
             print("Write valid phone number")
             exit()
+        except TypeError:
+            return "Use valid task!"
         else:
             return res
     return Inner
@@ -174,3 +176,104 @@ class AddressBook(UserDict):
             if len(list_notes) == n_on_page:
                 yield list_notes
                 list_notes = []
+ 
+def add_func(task):
+    rec = Record(task[0])
+    rec.add_phone(*task[1:])
+    book.add_record(rec)
+
+@input_error 
+def change_func(task):
+    rec = book.find(task[0])
+    rec.edit_phone(task[1], task[2])    
+        
+@input_error 
+def phone_func(task):
+    rec = book.find(task[0])
+    return rec.phones
+
+@input_error 
+def show_func(task):
+    lst = []
+    for record in book.data.values():
+        lst.append(record)
+    return lst
+
+@input_error 
+def exit_func(task):
+    print("Good bye!")
+    exit()    
+
+func = {add_func: ["add", "+"], change_func: ["change", "edit"], phone_func: ["phone"], 
+        show_func: ["show", "show all"], exit_func: ["exit", "good", "bye", "close"]}
+
+@input_error 
+def get_func(task):
+    for k, v in func.items():
+        if task in v:
+            return k
+        
+dict_contacts = {}
+
+@input_error        
+def task_handler(task):
+    task = task.lower()
+    
+    if task == "hello":
+        return "How can I help You?"
+    
+    task_list = task.split()
+    
+    handler = get_func(task_list[0])
+    return handler(task_list[1:])
+
+def main():
+    global book
+    book = AddressBook()
+    while True:
+        task = input(">>>")
+        res = task_handler(task)
+        
+        if isinstance(res, list):
+            for i in res:
+                print(i)
+        elif res:
+            print(res)
+
+if __name__ == "__main__":
+    print(main())
+                    
+# # Створення нової адресної книги
+# book = AddressBook()
+
+# # Створення запису для John
+# john_record = Record("John")
+# john_record.add_phone("1234567890", "01.04.1998")
+# john_record.add_phone("5555555555")
+
+# print(john_record.days_to_birthday())
+
+# # Додавання запису John до адресної книги
+# book.add_record(john_record)
+
+# # Створення та додавання нового запису для Jane
+# jane_record = Record("Jane")
+# jane_record.add_phone("9876543210")
+# book.add_record(jane_record)
+
+# # Виведення всіх записів у книзі
+# for name, record in book.data.items():
+#     print(record)
+
+# # Знаходження та редагування телефону для John
+# john = book.find("John")
+# john.edit_phone("1234567890", "1112223333")
+
+# print(john)  # Виведення: Contact name: John, phones: 1112223333; 5555555555
+
+# # Пошук конкретного телефону у записі John
+# found_phone = john.find_phone("5555555555")
+# print(f"{john.name}: {found_phone}")  # Виведення: 5555555555
+
+# # Видалення запису Jane
+# book.delete("Jane")
