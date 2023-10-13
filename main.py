@@ -5,18 +5,19 @@ import pickle
 
 file_name = "contact_book.bin"
 
+
 def input_error(func):
     def Inner(*args):
         try:
             res = func(*args)
         except KeyError:
             print("Use valid contact!")
-            exit()
         except ValueError:
-            print("Write valid phone number")
-            exit()
+            print("Write valid phone number")            
         except TypeError:
             return "Use valid task!"
+        except AttributeError:
+            return "Use valid contact"
         else:
             return res
     return Inner
@@ -28,6 +29,7 @@ class Field:
     def __str__(self):
         return str(self._value)
 
+
 class Name(Field):
     def get_name(self):
         return self._value
@@ -36,6 +38,7 @@ class Name(Field):
         self._value = new_value
 
     value = property(get_name, set_name)
+
 
 class Phone(Field):
     def get_phone(self):
@@ -47,21 +50,30 @@ class Phone(Field):
             pass
         else:
             print("Use valid phone format.")
+
             
     value = property(get_phone, set_phone)            
+       
             
 class Birthday(Field):
     def get_bday(self):
-        return str(self._value.date())
+        try:
+            x = str(self._value.date())
+        except AttributeError:
+            pass
+        else:
+            return x
+            
 
     def set_bday(self, new_value):
         try:
             self._value = datetime.strptime(new_value, "%d.%m.%Y")
         except ValueError:
             print("Use birthday format dd.mm.yyyy!")
-            exit()
+
             
     value = property(get_bday, set_bday)
+   
     
 class Record:
     def __init__(self, name):
@@ -70,15 +82,17 @@ class Record:
         self.birthday = None
 
     def add_phone(self, phone = None, birthday = None):
-        p = Phone()
-        p.value = phone
-        if p.value is not None:
+        if phone is not None:
+            p = Phone()
+            p.value = phone
             self.phone = p
-            self.phones.append(self.phone)
+            if str(self.phone) not in [i.value for i in self.phones] and self.phone.value is not None:
+                self.phones.append(self.phone) 
         if birthday:
             b = Birthday()
             b.value = birthday
-            self.birthday = b
+            if b.value is not None:
+                self.birthday = b
             
     def days_to_birthday(self):
         today_date = datetime.now()
@@ -122,11 +136,12 @@ class Record:
             return (f"Contact name: {self.name.value}, "
                     f"phones: {'; '.join(p.value for p in self.phones)}, "
                     f"birthday: {self.birthday.value}")
-        elif self.phones:
+        elif self.phones and self.phones[0].value is not None:
             return (f"Contact name: {self.name.value}, "
                     f"phones: {'; '.join(p.value for p in self.phones)}")
         else:
             return f"Contact name: {self.name.value}"
+
 
 class AddressBook(UserDict):
     try:
@@ -136,10 +151,6 @@ class AddressBook(UserDict):
                 self.data = AddressBook.unpacked
     except FileNotFoundError:
         ...
-        
-    def save_file(self):
-        with open (file_name, "wb") as fh:
-            pickle.dump(self.data, fh)
         
     def add_record(self, record):
         self.data[record.name.value] = record
@@ -161,53 +172,77 @@ class AddressBook(UserDict):
     def delete(self, name):        
         self.data.pop(name)
 
-    @input_error
+    
     def iterator(self, n_on_page):
         list_notes = []
-        for v in self.data.values():
+        for n, v in enumerate(self.data.values()):
             if v.birthday:
-                new_v = f"Contact name: {v.name.value}, "
-                f"phones: {'; '.join(p.value for p in v.phones)}, "
-                f"birthday: {v.birthday.value}"
+                new_v = (f"Contact name: {v.name.value}, "
+                         f"phones: {'; '.join(p.value for p in v.phones)}, "
+                         f"birthday: {v.birthday.value}")
             else:
-                new_v = f"Contact name: {v.name.value}, "
-                f"phones: {'; '.join(p.value for p in v.phones)}"
+                new_v = (f"Contact name: {v.name.value}, "
+                         f"phones: {'; '.join(p.value for p in v.phones)}")
             list_notes.append(new_v) 
-            if len(list_notes) == n_on_page:
+            if len(list_notes) == int(n_on_page):
                 yield list_notes
                 list_notes = []
+        yield list_notes
+ 
  
 def add_func(task):
-    rec = Record(task[0])
+    if task[0] in book.data:
+        rec = book.find(task[0])
+    else:
+        rec = Record(task[0])
+        book.add_record(rec)
     rec.add_phone(*task[1:])
-    book.add_record(rec)
 
-@input_error 
 def change_func(task):
     rec = book.find(task[0])
-    rec.edit_phone(task[1], task[2])    
+    rec.edit_phone(task[1], task[2]) if rec else ...    
         
-@input_error 
 def phone_func(task):
     rec = book.find(task[0])
-    return rec.phones
+    return rec.phones if rec else None
 
-@input_error 
-def show_func(task):
+def show_func(_):
     lst = []
     for record in book.data.values():
         lst.append(record)
     return lst
 
-@input_error 
+def days_to_bd_func(task):
+    rec = book.find(task[0])
+    return rec.days_to_birthday() if rec else None
+
+def delete_func(task):
+    book.delete(task[0])
+        
+def delete_phone_func(task):
+    rec = book.find(task[0])
+    rec.remove_phone(task[1])
+    
+def search_func(task):
+    book.search(task[0])
+
+def show_list_func(task):
+    for i in book.iterator(task[0]):
+        print(i)
+
 def exit_func(task):
     print("Good bye!")
+    with open (file_name, "wb") as fh:
+            pickle.dump(book.data, fh)
     exit()    
 
 func = {add_func: ["add", "+"], change_func: ["change", "edit"], phone_func: ["phone"], 
-        show_func: ["show", "show all"], exit_func: ["exit", "good", "bye", "close"]}
+        show_func: ["show", "show_all"], exit_func: ["exit", "good", "bye", "close"], 
+        days_to_bd_func: ["bd", "birthday"], delete_func: ["del", "delete"], 
+        search_func: ["search"], delete_phone_func: ["del_phone", "delete_phone"],
+        show_list_func: ["show_page"]}
 
-@input_error 
+ 
 def get_func(task):
     for k, v in func.items():
         if task in v:
@@ -215,7 +250,7 @@ def get_func(task):
         
 dict_contacts = {}
 
-@input_error        
+@input_error     
 def task_handler(task):
     task = task.lower()
     
@@ -242,38 +277,3 @@ def main():
 
 if __name__ == "__main__":
     print(main())
-                    
-# # Створення нової адресної книги
-# book = AddressBook()
-
-# # Створення запису для John
-# john_record = Record("John")
-# john_record.add_phone("1234567890", "01.04.1998")
-# john_record.add_phone("5555555555")
-
-# print(john_record.days_to_birthday())
-
-# # Додавання запису John до адресної книги
-# book.add_record(john_record)
-
-# # Створення та додавання нового запису для Jane
-# jane_record = Record("Jane")
-# jane_record.add_phone("9876543210")
-# book.add_record(jane_record)
-
-# # Виведення всіх записів у книзі
-# for name, record in book.data.items():
-#     print(record)
-
-# # Знаходження та редагування телефону для John
-# john = book.find("John")
-# john.edit_phone("1234567890", "1112223333")
-
-# print(john)  # Виведення: Contact name: John, phones: 1112223333; 5555555555
-
-# # Пошук конкретного телефону у записі John
-# found_phone = john.find_phone("5555555555")
-# print(f"{john.name}: {found_phone}")  # Виведення: 5555555555
-
-# # Видалення запису Jane
-# book.delete("Jane")
